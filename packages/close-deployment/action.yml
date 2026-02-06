@@ -1,0 +1,57 @@
+name: 'Close Akash Deployment'
+description: 'Close a deployment on Akash Network'
+author: 'Akash Network Team'
+
+branding:
+  icon: 'x-circle'
+  color: 'red'
+
+inputs:
+  mnemonic:
+    description: 'Wallet mnemonic phrase for signing transactions. Should be stored as a GitHub secret.'
+    required: true
+
+  dseq:
+    description: 'Deployment sequence number to close'
+    required: true
+
+  gas:
+    description: 'Gas limit for transactions'
+    required: false
+    default: 'auto'
+
+  gas-multiplier:
+    description: 'Gas multiplier (used when gas is "auto")'
+    required: false
+    default: '1.5'
+
+  fee:
+    description: 'Fee amount in the smallest denomination'
+    required: false
+    default: ''
+
+  denom:
+    description: 'Token denomination for fees'
+    required: false
+    default: 'uakt'
+
+  rest-url:
+    description: 'REST API URL for querying the Akash network'
+    required: false
+    default: 'https://rpc.akt.dev/rest'
+
+  tx-rpc-url:
+    description: 'RPC URL for submitting transactions'
+    required: false
+    default: 'https://rpc.akt.dev/rpc'
+
+outputs:
+  deployment-id:
+    description: 'The closed deployment ID (owner/dseq)'
+
+  tx-hash:
+    description: 'The transaction hash of the close deployment transaction'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
