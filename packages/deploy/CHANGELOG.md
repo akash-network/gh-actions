@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/akash-network/gh-actions/compare/deploy/v0.1.0...deploy/v0.2.0) (2026-02-06)
+
+
+### Features
+
+* adds pick strategy to deploy action ([#6](https://github.com/akash-network/gh-actions/issues/6)) ([1327870](https://github.com/akash-network/gh-actions/commit/132787084239cc6ef86faba9fc2178b9e7934318))
+
 ## [0.1.0](https://github.com/akash-network/gh-actions/compare/deploy/v0.0.1...deploy/v0.1.0) (2026-02-06)
 
 
