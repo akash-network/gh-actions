@@ -12,8 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     outputs:
-      paths_released: ${{ steps.release-pl.outputs.paths_released }}
-      pr: ${{ steps.release-pl.outputs.pr }}
+      prs: ${{ steps.release-pl.outputs.prs }}
       prs_created: ${{ steps.release-pl.outputs.prs_created }}
     permissions:
       contents: write
@@ -33,11 +32,14 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    strategy:
+      matrix:
+        pr: ${{ fromJson(needs.release.outputs.prs) }}
     steps:
       - name: Checkout release PR branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
-          ref: ${{ fromJson(needs.release.outputs.pr).headBranchName }}
+          ref: ${{ matrix.pr.headBranchName }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
