@@ -81,16 +81,15 @@ describe(sendManifest.name, () => {
     const { provider } = setup();
     const fetch = vi.fn().mockResolvedValue(new Response("Bad Request", { status: 400 }));
 
-    const result = await sendManifest({
+    await expect(sendManifest({
       manifest: "{}",
       token: "token",
       provider,
       dseq: "12345",
       fetch,
-    });
+    })).rejects.toThrow("Failed to send manifest: 400");
 
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(result.status).toBe(400);
   });
 
   it("retries on network errors", async () => {
@@ -176,7 +175,7 @@ describe(getLeaseStatus.name, () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      "https://provider.akash.test/deployment/12345/status",
+      "https://provider.akash.test/lease/12345/1/1/status",
       expect.objectContaining({
         method: "GET",
         headers: {
@@ -241,7 +240,6 @@ describe(getLeaseStatus.name, () => {
       .mockRejectedValueOnce(networkError)
       .mockResolvedValueOnce(new Response(JSON.stringify(statusResponse), { status: 200 }));
 
-    vi.useFakeTimers();
     const promise = getLeaseStatus({
       token: "token",
       provider,

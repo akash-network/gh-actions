@@ -26,6 +26,7 @@ async function run(): Promise<void> {
         signer: createStargateClient({
           baseUrl: inputs.txRpcUrl,
           signer: wallet,
+          gasMultiplier: parseFloat(inputs.gasMultiplier),
         }),
       },
     });
