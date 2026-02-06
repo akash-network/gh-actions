@@ -95,7 +95,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
 
   try {
     logger.info("Waiting for providers to create bids...");
-    const selectedBid = await waitForBid(sdk, deploymentId, inputs.leaseTimeout, inputs.bidsFilter, logger);
+    const selectedBid = await waitForBid(sdk, deploymentId, inputs.leaseTimeout, inputs.selectBid, logger);
 
     logger.info(
       `✅ Selected bid: Provider ${selectedBid?.id?.provider}, Price: ${selectedBid?.price?.amount}${selectedBid?.price?.denom}`
@@ -176,7 +176,7 @@ export async function waitForBid(
   sdk: ChainSDK,
   deploymentId: QueryInput<DeploymentID>,
   timeoutSeconds: number,
-  findMatchingBid: ActionInputs['bidsFilter'],
+  findMatchingBid: ActionInputs['selectBid'],
   logger: Logger
 ): Promise<JsonResponse<Bid>> {
   const maxAttempts = Math.ceil(timeoutSeconds / 10);

@@ -16,10 +16,17 @@ jobs:
 
       - name: Deploy to Akash
         id: deploy
-        uses: ./packages/deploy
+        uses: akash-network/gh-actions/packages/deploy@deploy/v0.1.0
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          bid-filter: cheapest
+          bid-filter: >-
+            {
+              "id.provider": {
+                "$nin": [
+                  "akash1yp2p50fdv9ypulq4m4yxpyjswmsa7yanrjtlvt"
+                ]
+              }
+            }
           rest-url: https://api.sandbox-2.aksh.pw:443
           tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
           sdl: |
@@ -70,7 +77,7 @@ jobs:
 
       - name: Close Akash Deployment
         id: close
-        uses: ./packages/close-deployment
+        uses: akash-network/gh-actions/packages/close-deployment@close-deployment/v0.1.0
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
           dseq: ${{ steps.deploy.outputs.dseq }}

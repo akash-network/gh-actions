@@ -6,7 +6,7 @@ import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 
 export interface ActionInputs {
   mnemonic: string;
-  bidsFilter: (bids: JsonResponse<Bid>[]) => JsonResponse<Bid> | undefined;
+  selectBid: (bids: JsonResponse<Bid>[]) => JsonResponse<Bid> | undefined;
   sdl: string;
   gas: string;
   gasMultiplier: string;
@@ -18,14 +18,17 @@ export interface ActionInputs {
   leaseTimeout: number;
 }
 
+type SelectBidStrategy = "cheapest" | "first";
+
 export function getInputs(): ActionInputs {
   const sdlInput = core.getInput("sdl", { required: true });
   const sdl = resolveSdl(sdlInput);
-  const bidConditions = core.getInput("bid-filter", { required: true });
+  const bidConditions = core.getInput("bid-filter");
+  const pickBidStrategy = core.getInput("pick-bid-strategy") as SelectBidStrategy || "cheapest";
 
   return {
     mnemonic: core.getInput("mnemonic", { required: true }),
-    bidsFilter: createBidsFilter(bidConditions),
+    selectBid: createBidsFilter(bidConditions, pickBidStrategy),
     sdl,
     gas: core.getInput("gas") || "auto",
     gasMultiplier: core.getInput("gas-multiplier") || "1.5",
@@ -61,18 +64,23 @@ function resolveSdl(sdlInput: string): string {
   return trimmed;
 }
 
-function createBidsFilter(bidConditions: string): ActionInputs['bidsFilter'] {
-  switch (bidConditions) {
-    case 'cheapest':
-      return (bids: JsonResponse<Bid>[]) => bids.sort((a, b) => {
-        const diff = parseFloat(a.price!.amount!) - parseFloat(b.price!.amount!);
-        if (diff === 0) return 0;
-        return diff > 0 ? 1 : -1;
-      })[0];
-    default:
-      const filter = createFilter<JsonResponse<Bid>>(JSON.parse(bidConditions));
-      return (bids: JsonResponse<Bid>[]) => bids.find(bid => filter(bid));
-  }
+function createBidsFilter(bidConditions: string, pickBidStrategy: SelectBidStrategy): ActionInputs['selectBid'] {
+  const filter = bidConditions ? createFilter<JsonResponse<Bid>>(JSON.parse(bidConditions)) : undefined;
+  return (bids: JsonResponse<Bid>[]) => {
+    const filteredBids = filter ? bids.filter(bid => filter(bid)) : bids;
+    switch (pickBidStrategy) {
+      case "first":
+        return filteredBids[0];
+
+      case "cheapest":
+      default:
+        return filteredBids.sort((a, b) => {
+          const diff = parseFloat(a.price!.amount!) - parseFloat(b.price!.amount!);
+          if (diff === 0) return 0;
+          return diff > 0 ? 1 : -1;
+        })[0];
+    }
+  };
 }
 
 export type JsonResponse<T> = {

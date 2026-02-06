@@ -14,12 +14,19 @@ inputs:
   bid-filter:
     description: |
       Filter for selecting a bid from providers using @ucast/mongo2js syntax.
-      Use 'cheapest' to automatically select the lowest priced bid, or provide a MongoDB-style filter.
       Examples:
-        - 'cheapest'
         - '{ "provider": "akash1..." }'
         - '{ "price.amount": { "$lte": "1000" } }'
-    required: true
+    required: false
+
+  pick-bid-strategy:
+    description: |
+      Strategy for picking a bid.
+      Examples:
+        - 'cheapest'
+        - 'first'
+    required: false
+    default: 'cheapest'
 
   sdl:
     description: |
