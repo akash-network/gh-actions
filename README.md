@@ -16,7 +16,7 @@ A collection of GitHub Actions for deploying and managing applications on the [A
 ```yaml
 - name: Deploy to Akash
   id: deploy
-  uses: akash-network/akash-gha/packages/deploy@v1
+  uses: akash-network/akash-gha/packages/deploy@deploy/v0.2.0
   with:
     mnemonic: ${{ secrets.AKASH_MNEMONIC }}
     sdl: ./deploy.yaml
@@ -29,7 +29,7 @@ A collection of GitHub Actions for deploying and managing applications on the [A
 
 ```yaml
 - name: Close Akash Deployment
-  uses: akash-network/akash-gha/packages/close-deployment@v1
+  uses: akash-network/akash-gha/packages/close-deployment@close-deployment/v0.1.0
   with:
     mnemonic: ${{ secrets.AKASH_MNEMONIC }}
     dseq: ${{ steps.deploy.outputs.dseq }}
@@ -57,7 +57,7 @@ jobs:
 
       - name: Deploy to Akash
         id: deploy
-        uses: akash-network/akash-gha/packages/deploy@v1
+        uses: akash-network/akash-gha/packages/deploy@deploy/v0.2.0
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
           pick-bid-strategy: 'cheapest'
@@ -99,7 +99,7 @@ jobs:
           echo "DSEQ: ${{ steps.deploy.outputs.dseq }}"
 
       - name: Close deployment
-        uses: akash-network/akash-gha/packages/close-deployment@v1
+        uses: akash-network/akash-gha/packages/close-deployment@close-deployment/v0.1.0
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
           dseq: ${{ steps.deploy.outputs.dseq }}
