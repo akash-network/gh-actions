@@ -124,6 +124,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
     });
 
     const createdLease = leaseQuery!.leases![0]!.lease!;
+    result.lease = createdLease as unknown as DeploymentResult['lease'];
     logger.info(`Lease verified: ${createdLease.id?.owner}/${createdLease.id?.dseq}/${createdLease.id?.gseq}/${createdLease.id?.oseq}/${createdLease.id?.provider}`);
     logger.info(`Lease state: ${createdLease.state}`);
 

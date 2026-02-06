@@ -10,4 +10,5 @@ export default defineConfig({
   noExternal: [/.*/],
   treeshake: true,
   minify: false,
+  bundle: true,
 });

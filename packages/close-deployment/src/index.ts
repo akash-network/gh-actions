@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { createChainNodeWebSDK, createStargateClient } from "@akashnetwork/chain-sdk/web";
+import { createChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
+import { createStargateClient } from "@akashnetwork/chain-sdk";
 import { closeDeployment } from "./close-deployment.js";
 import { getInputs } from "./inputs.js";
 
@@ -15,9 +16,15 @@ async function run(): Promise<void> {
 
     core.info("Connecting to Akash network...");
     const sdk = createChainNodeWebSDK({
-      rpcUrl: inputs.txRpcUrl,
-      restUrl: inputs.queryRestUrl,
-      createSigner: () => createStargateClient(wallet, inputs.txRpcUrl),
+      query: {
+        baseUrl: inputs.queryRestUrl,
+      },
+      tx: {
+        signer: createStargateClient({
+          baseUrl: inputs.txRpcUrl,
+          signer: wallet,
+        }),
+      },
     });
 
     const result = await closeDeployment(sdk, wallet, inputs);
