@@ -5,7 +5,8 @@ A GitHub Action to deploy applications on the [Akash Network](https://akash.netw
 ## Features
 
 - Deploy applications using SDL (Stack Definition Language)
-- Filter bids using MongoDB-style queries with [@ucast/mongo2js](https://github.com/stalniy/ucast) or use `cheapest` for automatic selection
+- Filter bids using MongoDB-style queries with [@ucast/mongo2js](https://github.com/stalniy/ucast)
+- Pick bid strategy: `cheapest` or `first`
 - Configurable gas and fee settings
 - Automatic bid selection and lease creation
 - Support for both inline SDL and file-based SDL
@@ -26,10 +27,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy to Akash Network
-        uses: akash-network/akash-gha/packages/deploy-using-akash@main
+        uses: akash-network/akash-gha/packages/deploy@v1
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          bid-filter: 'cheapest'
           sdl: ./deploy.yaml
 ```
 
@@ -38,8 +38,9 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `mnemonic` | Wallet mnemonic phrase for signing transactions | Yes | - |
-| `bid-filter` | Filter for selecting a bid (use `cheapest` or MongoDB-style filter) | Yes | - |
 | `sdl` | Path to SDL file or inline SDL string | Yes | - |
+| `bid-filter` | MongoDB-style filter for bids (see below) | No | `{}` (all bids) |
+| `pick-bid-strategy` | Strategy for picking a bid: `cheapest` or `first` | No | `cheapest` |
 | `gas` | Gas limit for transactions | No | `auto` |
 | `gas-multiplier` | Gas multiplier (used when gas is "auto") | No | `1.5` |
 | `fee` | Fee amount in smallest denomination | No | - |
@@ -59,21 +60,53 @@ jobs:
 | `provider` | The selected provider address |
 | `lease-status` | The status of the lease |
 
-## Bid Filter
+## Bid Selection
 
-The `bid-filter` input supports two modes:
+Bid selection works in two stages:
 
-### 1. Cheapest Bid Selection
+1. **Filter** (`bid-filter`) - Narrows down bids using MongoDB-style queries
+2. **Pick** (`pick-bid-strategy`) - Selects one bid from the filtered results
 
-Use `cheapest` to automatically select the lowest priced bid:
+### Pick Bid Strategy
 
+| Strategy | Description |
+|----------|-------------|
+| `cheapest` | Select the lowest priced bid (default) |
+| `first` | Select the first available bid |
+
+### Examples
+
+**Cheapest bid (default):**
 ```yaml
-bid-filter: 'cheapest'
+- uses: akash-network/akash-gha/packages/deploy@v1
+  with:
+    mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+    sdl: ./deploy.yaml
+    # pick-bid-strategy defaults to 'cheapest'
 ```
 
-### 2. MongoDB-style Filter
+**First available bid:**
+```yaml
+- uses: akash-network/akash-gha/packages/deploy@v1
+  with:
+    mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+    sdl: ./deploy.yaml
+    pick-bid-strategy: 'first'
+```
 
-Use [@ucast/mongo2js](https://github.com/stalniy/ucast) syntax to filter bids based on their properties. The filter is applied to bid objects with the following structure:
+**Cheapest bid from a specific provider:**
+```yaml
+- uses: akash-network/akash-gha/packages/deploy@v1
+  with:
+    mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+    sdl: ./deploy.yaml
+    bid-filter: '{ "id.provider": "akash1abc123..." }'
+    pick-bid-strategy: 'cheapest'
+```
+
+## Bid Filter
+
+The `bid-filter` input uses [@ucast/mongo2js](https://github.com/stalniy/ucast) syntax to filter bids. The filter is applied to bid objects with the following structure:
 
 ```typescript
 {
@@ -113,6 +146,16 @@ bid-filter: |
       { "price.amount": { "$gte": "500" } },
       { "price.amount": { "$lte": "1500" } }
     ]
+  }
+```
+
+**Filter by multiple providers:**
+```yaml
+bid-filter: |
+  {
+    "id.provider": {
+      "$in": ["akash1provider1...", "akash1provider2..."]
+    }
   }
 ```
 
@@ -193,11 +236,12 @@ jobs:
 
       - name: Deploy to Akash Network
         id: deploy
-        uses: akash-network/akash-gha/packages/deploy-using-akash@main
+        uses: akash-network/akash-gha/packages/deploy@v1
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          bid-filter: 'cheapest'
           sdl: ./akash/deploy.yaml
+          bid-filter: '{ "price.amount": { "$lte": "2000" } }'
+          pick-bid-strategy: 'cheapest'
           deposit: '1000000'
           lease-timeout: '300'
 

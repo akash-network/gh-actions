@@ -486,7 +486,7 @@ describe(createDeployment.name, () => {
 
     const inputs: ActionInputs = {
       mnemonic: wallet.mnemonic,
-      bidsFilter: (bids) => bids[0],
+      selectBid: (bids) => bids[0],
       sdl: `
 version: "2.0"
 services:
