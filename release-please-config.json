@@ -5,19 +5,18 @@
   "tag-separator": "/",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
+  "release-type": "node",
 
   "packages": {
-    "deploy": {
+    "packages/deploy": {
       "package-name": "@akashnetwork/deploy",
       "component": "deploy",
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "node"
+      "changelog-path": "CHANGELOG.md"
     },
-    "close-deployment": {
+    "packages/close-deployment": {
       "package-name": "@akashnetwork/close-deployment",
       "component": "close-deployment",
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "node"
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

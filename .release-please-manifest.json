@@ -1,4 +1,4 @@
 {
-  "deploy": "0.0.1",
-  "close-deployment": "0.0.1"
+  "packages/deploy": "0.0.1",
+  "packages/close-deployment": "0.0.1"
 }
