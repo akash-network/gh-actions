@@ -1,0 +1,90 @@
+name: 'Deploy on Akash Network'
+description: 'Deploy applications on Akash Network using the Chain SDK'
+author: 'Akash Network Team'
+
+branding:
+  icon: 'cloud'
+  color: 'red'
+
+inputs:
+  mnemonic:
+    description: 'Wallet mnemonic phrase for signing transactions. Should be stored as a GitHub secret.'
+    required: true
+
+  bid-filter:
+    description: |
+      Filter for selecting a bid from providers using @ucast/mongo2js syntax.
+      Use 'cheapest' to automatically select the lowest priced bid, or provide a MongoDB-style filter.
+      Examples:
+        - 'cheapest'
+        - '{ "provider": "akash1..." }'
+        - '{ "price.amount": { "$lte": "1000" } }'
+    required: true
+
+  sdl:
+    description: |
+      SDL (Stack Definition Language) for the deployment.
+      Can be either:
+        - A path to an SDL file (e.g., './deploy.yaml')
+        - An inline SDL string
+    required: true
+
+  gas:
+    description: 'Gas limit for transactions'
+    required: false
+    default: 'auto'
+
+  gas-multiplier:
+    description: 'Gas multiplier (used when gas is "auto")'
+    required: false
+    default: '1.5'
+
+  fee:
+    description: 'Fee amount in the smallest denomination'
+    required: false
+    default: ''
+
+  denom:
+    description: 'Token denomination for fees and deposit'
+    required: false
+    default: 'uakt'
+
+  deposit:
+    description: 'Deposit amount for the deployment in uakt'
+    required: false
+    default: '500000'
+
+  rest-url:
+    description: 'REST API URL for querying the Akash network'
+    required: false
+    default: 'https://rpc.akt.dev/rest'
+
+  tx-rpc-url:
+    description: 'RPC URL for submitting transactions'
+    required: false
+    default: 'https://rpc.akt.dev/rpc'
+
+  lease-timeout:
+    description: 'Maximum time to wait for bids and lease creation (in seconds)'
+    required: false
+    default: '180'
+
+outputs:
+  deployment-id:
+    description: 'The deployment ID (owner/dseq)'
+
+  dseq:
+    description: 'The deployment sequence number'
+
+  lease-id:
+    description: 'The lease ID (owner/dseq/gseq/oseq/provider)'
+
+  provider:
+    description: 'The selected provider address'
+
+  lease-status:
+    description: 'The status of the lease'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

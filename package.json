@@ -1,0 +1,11 @@
+{
+  "name": "akash-gha",
+  "private": true,
+  "version": "0.0.1",
+  "description": "A bunch of github actions to work with the Akash Network",
+  "license": "Apache-2.0",
+  "author": "Akash Network Team",
+  "workspaces": [
+    "packages/*"
+  ]
+}
