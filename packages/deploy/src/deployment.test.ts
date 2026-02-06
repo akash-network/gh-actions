@@ -362,7 +362,7 @@ describe(createDeployment.name, () => {
     );
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/deployment/12345/status"),
+      expect.stringContaining("/lease/12345/1/1/status"),
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -405,8 +405,14 @@ describe(createDeployment.name, () => {
     const ownerAddress = account.address;
     const providerAddress = "akash1provider0000000000000000000000000000";
 
+    // Mock fetch returns LeaseStatus structure for getLeaseStatus calls
+    const leaseStatusResponse = {
+      services: {
+        web: { name: "web", available: 1, total: 1, uris: ["http://test.example.com"] }
+      }
+    };
     const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ status: "ok" }), { status: 200 })
+      new Response(JSON.stringify(leaseStatusResponse), { status: 200 })
     );
     const generateToken = vi.fn().mockResolvedValue("mock-jwt-token");
 

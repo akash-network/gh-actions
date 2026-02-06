@@ -26,7 +26,7 @@ export async function sendManifest(input:{
   fetch?: typeof globalThis.fetch,
 }): Promise<Response> {
   const fetch = input.fetch || globalThis.fetch;
-  return RETRY_POLICY.execute(async () => {
+  const response = await RETRY_POLICY.execute(async () => {
     return await fetch(`${input.provider.provider.hostUri}/deployment/${input.dseq}/manifest`, {
       method: "PUT",
       body: input.manifest,
@@ -36,7 +36,13 @@ export async function sendManifest(input:{
         "Authorization": `Bearer ${input.token}`,
       },
     });
-  })
+  });
+
+  if (response.status > 300) {
+    throw new Error(`Failed to send manifest: ${response.status} ${await response.text()}`);
+  }
+
+  return response;
 }
 
 type ErrorWithCode = Error & { code: unknown };
@@ -48,27 +54,10 @@ function isNetworkError(error: Error): boolean {
 export async function generateToken(wallet: DirectSecp256k1HdWallet, bid: JsonResponse<Bid>, services: string[]): Promise<string> {
   const aminoWallet = await Secp256k1HdWallet.fromMnemonic(wallet.mnemonic, { prefix: "akash" });
   const providerTokenManager = new JwtTokenManager(aminoWallet);
-  console.dir({
-    version: "v1",
-    iss: bid?.id.owner!,
-    exp: 5 * 60,
-    leases: {
-      access: "granular",
-      permissions: [
-        {
-          access: "granular",
-          provider: bid?.id?.provider!,
-          deployments: [
-            { dseq: Number(bid?.id?.dseq!), scope: ["send-manifest", "status"] }
-          ]
-        }
-      ]
-    }
-  }, { depth: null });
   const token = await providerTokenManager.generateToken({
     version: "v1",
     iss: bid?.id.owner!,
-    exp: 5 * 60,
+    exp: Math.floor((Date.now() / 1000) + 5 * 60),
     leases: {
       access: "granular",
       permissions: [
@@ -90,10 +79,10 @@ export async function getLeaseStatus(input:{
   provider: JsonResponse<QueryProviderResponse>,
   dseq: string,
   fetch?: typeof globalThis.fetch,
-}): Promise<unknown> {
+}): Promise<LeaseStatus> {
   const fetch = input.fetch || globalThis.fetch;
   const response = await RETRY_POLICY.execute(async () => {
-    return await fetch(`${input.provider.provider.hostUri}/deployment/${input.dseq}/status`, {
+    return await fetch(`${input.provider.provider.hostUri}/lease/${input.dseq}/1/1/status`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${input.token}`,
@@ -101,5 +90,18 @@ export async function getLeaseStatus(input:{
     });
   });
 
-  return await response.json();
+  if (response.status > 300) {
+    throw new Error(`Failed to get lease status: ${response.status} ${await response.text()}`);
+  }
+
+  return (await response.json()) as LeaseStatus;
+}
+
+export interface LeaseStatus {
+  services: Record<string, {
+    name: string;
+    available: number;
+    total: number;
+    uris: string[];
+  }>;
 }

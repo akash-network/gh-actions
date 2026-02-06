@@ -1,0 +1,83 @@
+name: Test Deployment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Akash
+    runs-on: ubuntu-latest
+    outputs:
+      dseq: ${{ steps.deploy.outputs.dseq }}
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy to Akash
+        id: deploy
+        uses: ./packages/deploy
+        with:
+          mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+          bid-filter: cheapest
+          rest-url: https://api.sandbox-2.aksh.pw:443
+          tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
+          sdl: |
+            version: "2.0"
+
+            services:
+              web:
+                image: baktun/hello-akash-world:1.0.0
+                expose:
+                  - port: 3000
+                    as: 80
+                    to:
+                      - global: true
+            profiles:
+              compute:
+                web:
+                  resources:
+                    cpu:
+                      units: 0.5
+                    memory:
+                      size: 512Mi
+                    storage:
+                      size: 512Mi
+
+              placement:
+                dcloud:
+                  pricing:
+                    # The name of the service
+                    web:
+                      denom: uakt
+                      amount: 10000
+
+            deployment:
+              web:
+                dcloud:
+                  profile: web
+                  count: 1
+
+      - name: Print deployment info
+        run: |
+          echo "Deployment ID: ${{ steps.deploy.outputs.deployment-id }}"
+          echo "DSEQ: ${{ steps.deploy.outputs.dseq }}"
+          echo "Lease ID: ${{ steps.deploy.outputs.lease-id }}"
+          echo "Provider: ${{ steps.deploy.outputs.provider }}"
+
+      - name: Wait for 3 minutes
+        run: sleep 180
+
+      - name: Close Akash Deployment
+        id: close
+        uses: ./packages/close-deployment
+        with:
+          mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+          dseq: ${{ steps.deploy.outputs.dseq }}
+          rest-url: https://api.sandbox-2.aksh.pw:443
+          tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
+
+      - name: Print close info
+        run: |
+          echo "Closed deployment: ${{ steps.close.outputs.deployment-id }}"
+          echo "Transaction hash: ${{ steps.close.outputs.tx-hash }}"

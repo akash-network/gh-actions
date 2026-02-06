@@ -65,9 +65,9 @@ function createBidsFilter(bidConditions: string): ActionInputs['bidsFilter'] {
   switch (bidConditions) {
     case 'cheapest':
       return (bids: JsonResponse<Bid>[]) => bids.sort((a, b) => {
-        const diff = BigInt(a.price!.amount!) - BigInt(b.price!.amount!);
-        if (diff === 0n) return 0;
-        return diff > 0n ? 1 : -1;
+        const diff = parseFloat(a.price!.amount!) - parseFloat(b.price!.amount!);
+        if (diff === 0) return 0;
+        return diff > 0 ? 1 : -1;
       })[0];
     default:
       const filter = createFilter<JsonResponse<Bid>>(JSON.parse(bidConditions));

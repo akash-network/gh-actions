@@ -79,7 +79,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
   const txOptions = buildTxOptions(inputs, "Deployment created via GitHub Action");
 
   await sdk.akash.deployment.v1beta4.createDeployment(deploymentMessage, txOptions);
-  logger.info("Deployment created successfully!");
+  logger.info("✅ Deployment created successfully!");
 
   const deploymentId: TxInput<DeploymentID> = {
     owner: account.address,
@@ -98,7 +98,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
     const selectedBid = await waitForBid(sdk, deploymentId, inputs.leaseTimeout, inputs.bidsFilter, logger);
 
     logger.info(
-      `Selected bid: Provider ${selectedBid?.id?.provider}, Price: ${selectedBid?.price?.amount}${selectedBid?.price?.denom}`
+      `✅ Selected bid: Provider ${selectedBid?.id?.provider}, Price: ${selectedBid?.price?.amount}${selectedBid?.price?.denom}`
     );
 
     logger.info("Creating lease from selected bid...");
@@ -108,7 +108,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
 
     const leaseTxOptions = buildTxOptions(inputs, "Lease created via GitHub Action");
     await sdk.akash.market.v1beta5.createLease(leaseMessage, leaseTxOptions);
-    logger.info("Lease created successfully!");
+    logger.info("✅ Lease created successfully!");
 
     logger.info("Verifying lease creation...");
     const leaseQuery = await sdk.akash.market.v1beta5.getLeases({
@@ -125,31 +125,47 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
 
     const createdLease = leaseQuery!.leases![0]!.lease!;
     result.lease = createdLease as unknown as DeploymentResult['lease'];
-    logger.info(`Lease verified: ${createdLease.id?.owner}/${createdLease.id?.dseq}/${createdLease.id?.gseq}/${createdLease.id?.oseq}/${createdLease.id?.provider}`);
-    logger.info(`Lease state: ${createdLease.state}`);
+    logger.info(`✅ Lease verified: ${createdLease.id?.owner}/${createdLease.id?.dseq}/${createdLease.id?.gseq}/${createdLease.id?.oseq}/${createdLease.id?.provider}`);
 
-    logger.info(`Submitting manifest to provider...`);
-    const manifest = sdl.manifest(true);
-    const token = await tokenGenerator(wallet, selectedBid!, manifest.flatMap(group => (group as v3Group).services.map(service => service.name)) );
+    logger.info(`Prepare manifest submission (provider: ${createdLease.id?.provider})...`);
+    const token = await tokenGenerator(wallet, selectedBid!, sdl.serviceNames());
     const provider = await sdk.akash.provider.v1beta4.getProvider({ owner: createdLease.id?.provider }) as unknown as JsonResponse<QueryProviderResponse>;
+    logger.info(`Submitting manifest to provider: ${provider.provider.hostUri}`);
     await sendManifest({
-      manifest: JSON.stringify(manifest),
+      manifest: sdl.manifestSortedJSON(),
       token,
       provider,
       dseq: selectedBid?.id?.dseq!.toString(),
       fetch: options?.fetch,
     });
+    logger.info("✅ Manifest submitted successfully!");
 
     logger.info(`Getting lease status...`);
-    const status = await getLeaseStatus({
+    const leaseStatus = await getLeaseStatus({
       token,
       provider,
       dseq: selectedBid?.id?.dseq!.toString(),
       fetch: options?.fetch,
     });
-    logger.info(`Lease status: ${JSON.stringify(status, null, 2)}`);
+
+    const services = Object.keys(leaseStatus.services).map(name => `${name}: ${leaseStatus.services[name].uris.join("\n")}`);
+
+    logger.info(`🚀 Deployment is ready`);
+    logger.info(services.join("\n"));
   } catch (error) {
-    await sdk.akash.deployment.v1beta4.closeDeployment({ id: deploymentId }, buildTxOptions(inputs, "Deployment close by GitHub Action because of error"));
+    logger.error(`Deployment failed: ${error instanceof Error ? error.message : String(error)}`);
+    if (error instanceof Error && error.stack) {
+      logger.error(`Stack: ${error.stack}`);
+    }
+
+    try {
+      logger.info("Attempting to close deployment due to error...");
+      await sdk.akash.deployment.v1beta4.closeDeployment({ id: deploymentId }, buildTxOptions(inputs, "Deployment close by GitHub Action because of error"));
+      logger.info("Deployment closed successfully");
+    } catch (closeError) {
+      logger.warning(`Failed to close deployment: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+    }
+
     throw error;
   }
 
@@ -197,7 +213,7 @@ export async function waitForBid(
     bidsResponse?.bids?.forEach((bidResponse, index) => {
       const bid = bidResponse.bid;
       logger.info(
-        `  Bid ${index + 1}: Provider ${bid?.id?.provider}, Price: ${bid?.price?.amount}${bid?.price?.denom}`
+        `  - Provider ${bid?.id?.provider}, Price: ${bid?.price?.amount}${bid?.price?.denom}`
       );
     });
 
@@ -217,12 +233,16 @@ export async function waitForBid(
 function buildTxOptions(
   inputs: ActionInputs,
   memo: string
-): { memo: string; fee?: { amount: { denom: string; amount: string }[]; gas: string } } {
-  const options: { memo: string; fee?: { amount: { denom: string; amount: string }[]; gas: string } } = {
+): { memo: string; fee?: { amount: { denom: string; amount: string }[]; gas: string }; gasAdjustment?: number } {
+  const options: {
+    memo: string;
+    fee?: { amount: { denom: string; amount: string }[]; gas: string };
+    gasAdjustment?: number;
+  } = {
     memo,
   };
 
-  if (inputs.fee && inputs.gas !== "auto") {
+  if (inputs.gas !== "auto" && inputs.fee) {
     options.fee = {
       amount: [
         {
@@ -232,6 +252,9 @@ function buildTxOptions(
       ],
       gas: inputs.gas,
     };
+  } else {
+    // When using auto gas, apply the multiplier
+    options.gasAdjustment = parseFloat(inputs.gasMultiplier);
   }
 
   return options;
