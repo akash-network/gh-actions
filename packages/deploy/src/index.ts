@@ -84,8 +84,16 @@ async function run(): Promise<void> {
     if (result.isNew && inputs.deploymentDetailsPath && result.lease) {
       const outPath = path.resolve(process.cwd(), inputs.deploymentDetailsPath);
       const details: StoredDeploymentDetails = {
-        dseq: result.deploymentId.dseq,
-        lease: result.lease,
+        dseq: result.deploymentId.dseq.toString(),
+        lease: {
+          id: {
+            owner: result.lease.id.owner,
+            dseq: result.lease.id.dseq.toString(),
+            gseq: Number(result.lease.id.gseq),
+            oseq: Number(result.lease.id.oseq),
+            provider: result.lease.id.provider,
+          },
+        },
       };
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, JSON.stringify(details, null, 2), "utf-8");
