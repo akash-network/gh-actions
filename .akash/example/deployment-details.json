@@ -1,0 +1,33 @@
+{
+  "dseq": "2145067",
+  "lease": {
+    "id": {
+      "owner": "akash1qufa3xzrf34qvwyejkhvnc4psf49fftaw0asmh",
+      "dseq": {
+        "low": 2145067,
+        "high": 0,
+        "unsigned": false
+      },
+      "gseq": 1,
+      "oseq": 1,
+      "provider": "akash13sl4awt7al7eckmdsr9zd2wv5df3cdz5x06vj5",
+      "bseq": 0
+    },
+    "state": 1,
+    "price": {
+      "denom": "uakt",
+      "amount": "7.580193000000000000"
+    },
+    "createdAt": {
+      "low": 2145071,
+      "high": 0,
+      "unsigned": false
+    },
+    "closedOn": {
+      "low": 0,
+      "high": 0,
+      "unsigned": false
+    },
+    "reason": 0
+  }
+}
