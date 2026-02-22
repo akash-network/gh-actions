@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/akash-network/gh-actions/compare/deploy/v0.3.1...deploy/v0.4.0) (2026-02-22)
+
+
+### Features
+
+* adds possibility to filter what deployments to close ([#19](https://github.com/akash-network/gh-actions/issues/19)) ([444648b](https://github.com/akash-network/gh-actions/commit/444648bf84580cbf601db46b82a0800b1882c209))
+
 ## [0.3.1](https://github.com/akash-network/gh-actions/compare/deploy/v0.3.0...deploy/v0.3.1) (2026-02-22)
 
 

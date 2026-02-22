@@ -1,8 +1,7 @@
 import * as core from "@actions/core";
 import { load as parseYaml } from "js-yaml";
 import { guard } from "@ucast/mongo2js";
-import { z } from "zod";
-import { LeaseStatus } from "@akashnetwork/actions-utils";
+import type { LeaseStatus } from "@akashnetwork/actions-utils";
 
 export interface DeploymentContext {
   dseq: string;
