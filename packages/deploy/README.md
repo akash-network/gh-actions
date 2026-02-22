@@ -49,6 +49,7 @@ jobs:
 | `rest-url` | REST API URL for querying Akash network | No | `https://rpc.akt.dev/rest` |
 | `tx-rpc-url` | RPC URL for submitting transactions | No | `https://rpc.akt.dev/rpc` |
 | `lease-timeout` | Maximum time to wait for bids (seconds) | No | `180` |
+| `deployment-details-path` | Path to a JSON file for storing/reading deployment details. Enables redeploy support — if the file exists the action reuses the existing deployment (or creates a new one if the lease has closed). The file is updated after every new deployment. | No | - |
 
 ## Outputs
 
@@ -59,6 +60,8 @@ jobs:
 | `lease-id` | The lease ID (owner/dseq/gseq/oseq/provider) |
 | `provider` | The selected provider address |
 | `lease-status` | The status of the lease |
+| `is-new` | `true` if a brand-new deployment was created, `false` if an existing deployment was reused |
+| `prev-dseq` | The previous deployment sequence number. Set only when `is-new` is `true` and `deployment-details-path` is provided — meaning the old lease had closed and a fresh deployment was created in its place |
 
 ## Bid Selection
 
@@ -168,6 +171,8 @@ The filter supports standard MongoDB query operators:
 - Element: `$exists`
 - Evaluation: `$regex`
 
+See https://www.npmjs.com/package/@ucast/mongo2js for more details.
+
 ## SDL Configuration
 
 You can provide SDL in two ways:
@@ -216,6 +221,45 @@ sdl: |
       dcloud:
         profile: web
         count: 1
+```
+
+## Redeploy Support
+
+When `deployment-details-path` is provided the action persists deployment details (dseq, lease info) to a JSON file and reads them back on subsequent runs. This enables idempotent deployments:
+
+- **Existing active lease** → the action reuses it and sets `is-new: false`.
+- **Lease closed / file absent** → the action creates a new deployment, writes the new details to the file, and sets `is-new: true`. `prev-dseq` is populated with the old sequence number so the stale deployment can be cleaned up.
+
+Use these outputs to:
+- Close the previous (stale) deployment after a full redeploy.
+- Gate steps that should only run on the first deployment (e.g. creating a PR to commit the updated details file).
+
+```yaml
+- name: Deploy to Akash
+  id: deploy
+  uses: akash-network/akash-gha/packages/deploy@v1
+  with:
+    mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+    sdl: ./example/deploy.yml
+    deployment-details-path: ./.akash/example/deployment-details.json
+
+# Close the stale deployment only when a full redeploy happened
+- name: Close stale deployment
+  if: steps.deploy.outputs.prev-dseq != ''
+  uses: akash-network/akash-gha/packages/close-deployment@v1
+  with:
+    mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+    filter: |
+      dseq: ${{ steps.deploy.outputs.prev-dseq }}
+
+# Commit updated deployment details only on a new deployment
+- name: Create PR with deployment details
+  if: steps.deploy.outputs.is-new == 'true'
+  uses: peter-evans/create-pull-request@v8
+  with:
+    add-paths: ./.akash/example/deployment-details.json
+    commit-message: "chore: save deployment details"
+    title: "chore: save deployment details"
 ```
 
 ## Complete Example

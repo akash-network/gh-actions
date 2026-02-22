@@ -29,12 +29,9 @@ async function run(): Promise<void> {
 
     const result = await closeDeployment(sdk, wallet, inputs);
 
-    core.setOutput("deployment-id", `${result.deploymentId.owner}/${result.deploymentId.dseq}`);
-    if (result.txHash) {
-      core.setOutput("tx-hash", result.txHash);
-    }
+    core.setOutput("closed_deployments_json", JSON.stringify(result));
 
-    core.info(`Successfully closed deployment: ${result.deploymentId.owner}/${result.deploymentId.dseq}`);
+    core.info(`Successfully closed deployments: ${result.map(r => r.dseq)}`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);
