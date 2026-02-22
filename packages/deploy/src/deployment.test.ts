@@ -1,9 +1,12 @@
 import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { createChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { mock, mockDeep } from "vitest-mock-extended";
-import { createDeployment, waitForBid, type Logger } from "./deployment.js";
+import { createDeployment, getExistingDeploymentDetails, updateDeploymentManifest, waitForBid, type Logger, type StoredDeploymentDetails } from "./deployment.js";
 import type { ActionInputs, JsonResponse } from "./inputs.js";
 
 type ChainSDK = ReturnType<typeof createChainNodeWebSDK>;
@@ -532,4 +535,205 @@ deployment:
 
     return { sdk, wallet, inputs, fetch, mockBid, generateToken, ownerAddress, providerAddress };
   }
+});
+
+describe(updateDeploymentManifest.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("calls updateDeployment on-chain with new manifest hash", async () => {
+    const { sdk, wallet, inputs, fetch, generateToken, existingDeployment } = await setup();
+
+    await updateDeploymentManifest(sdk, wallet, inputs, existingDeployment, { fetch, logger: mock<Logger>(), generateToken });
+
+    expect(sdk.akash.deployment.v1beta4.updateDeployment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: { owner: existingDeployment.lease.id.owner, dseq: existingDeployment.dseq },
+      }),
+      expect.objectContaining({ memo: "Deployment updated via GitHub Action" })
+    );
+  });
+
+  it("sends updated manifest to provider", async () => {
+    const { sdk, wallet, inputs, fetch, generateToken, existingDeployment } = await setup();
+
+    await updateDeploymentManifest(sdk, wallet, inputs, existingDeployment, { fetch, logger: mock<Logger>(), generateToken });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining(`/deployment/${existingDeployment.dseq}/manifest`),
+      expect.objectContaining({ method: "PUT" })
+    );
+  });
+
+  it("returns isNew: false", async () => {
+    const { sdk, wallet, inputs, fetch, generateToken, existingDeployment } = await setup();
+
+    const result = await updateDeploymentManifest(sdk, wallet, inputs, existingDeployment, { fetch, logger: mock<Logger>(), generateToken });
+
+    expect(result.isNew).toBe(false);
+  });
+
+  it("returns the existing deployment id and lease", async () => {
+    const { sdk, wallet, inputs, fetch, generateToken, existingDeployment } = await setup();
+
+    const result = await updateDeploymentManifest(sdk, wallet, inputs, existingDeployment, { fetch, logger: mock<Logger>(), generateToken });
+
+    expect(result.deploymentId).toEqual({ owner: existingDeployment.lease.id.owner, dseq: existingDeployment.dseq });
+    expect(result.lease).toEqual(existingDeployment.lease);
+  });
+
+  async function setup() {
+    const sdk = mockDeep<ChainSDK>();
+    const wallet = await DirectSecp256k1HdWallet.generate(12, { prefix: "akash" });
+    const [account] = await wallet.getAccounts();
+    const providerAddress = "akash1provider0000000000000000000000000000";
+
+    const existingDeployment: StoredDeploymentDetails = {
+      dseq: "99999",
+      lease: {
+        id: {
+          owner: account.address,
+          dseq: "99999",
+          gseq: 1,
+          oseq: 1,
+          provider: providerAddress,
+        },
+        state: "active",
+        price: { amount: "1000", denom: "uakt" },
+      },
+    };
+
+    const leaseStatusResponse = {
+      services: {
+        web: { name: "web", available: 1, total: 1, uris: ["http://test.example.com"] },
+      },
+    };
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(leaseStatusResponse), { status: 200 })
+    );
+    const generateToken = vi.fn().mockResolvedValue("mock-jwt-token");
+
+    sdk.akash.deployment.v1beta4.updateDeployment.mockResolvedValue(undefined as any);
+    sdk.akash.provider.v1beta4.getProvider.mockResolvedValue({
+      provider: { owner: providerAddress, hostUri: "https://provider.test" },
+    } as any);
+
+    const inputs: ActionInputs = {
+      mnemonic: wallet.mnemonic,
+      selectBid: (bids) => bids[0],
+      sdl: `
+version: "2.0"
+services:
+  web:
+    image: nginx:latest
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 512Mi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 10000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+`,
+      gas: "auto",
+      gasMultiplier: "1.5",
+      fee: "",
+      denom: "uakt",
+      deposit: "500000",
+      queryRestUrl: "https://rpc.test/rest",
+      txRpcUrl: "https://rpc.test/rpc",
+      leaseTimeout: 30,
+    };
+
+    return { sdk, wallet, inputs, fetch, generateToken, existingDeployment, providerAddress };
+  }
+});
+
+describe(getExistingDeploymentDetails.name, () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "akash-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const validDetails: StoredDeploymentDetails = {
+    dseq: "12345",
+    lease: {
+      id: {
+        owner: "akash1owner",
+        dseq: "12345",
+        gseq: 1,
+        oseq: 1,
+        provider: "akash1provider",
+      },
+      state: "active",
+      price: { amount: "1000", denom: "uakt" },
+    },
+  };
+
+  it("returns null when path is undefined", () => {
+    expect(getExistingDeploymentDetails(undefined)).toBeNull();
+  });
+
+  it("returns null when file does not exist", () => {
+    expect(getExistingDeploymentDetails(path.join(tmpDir, "nonexistent.json"))).toBeNull();
+  });
+
+  it("returns parsed details for a valid file", () => {
+    const filePath = path.join(tmpDir, "deployment.json");
+    fs.writeFileSync(filePath, JSON.stringify(validDetails));
+
+    expect(getExistingDeploymentDetails(filePath)).toEqual(validDetails);
+  });
+
+  it("throws when file contains invalid JSON", () => {
+    const filePath = path.join(tmpDir, "deployment.json");
+    fs.writeFileSync(filePath, "not-json{{{");
+
+    expect(() => getExistingDeploymentDetails(filePath)).toThrow(/Failed to parse deployment details/);
+  });
+
+  it.each([
+    ["missing dseq", { ...validDetails, dseq: undefined }],
+    ["empty dseq", { ...validDetails, dseq: "" }],
+    ["missing lease", { ...validDetails, lease: undefined }],
+    ["missing lease.id", { ...validDetails, lease: { ...validDetails.lease, id: undefined } }],
+    ["missing lease.id.owner", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, owner: "" } } }],
+    ["missing lease.id.dseq", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, dseq: "" } } }],
+    ["lease.id.gseq not a number", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, gseq: "1" } } }],
+    ["lease.id.oseq not a number", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, oseq: "1" } } }],
+    ["missing lease.id.provider", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, provider: "" } } }],
+    ["missing lease.state", { ...validDetails, lease: { ...validDetails.lease, state: "" } }],
+    ["missing lease.price", { ...validDetails, lease: { ...validDetails.lease, price: undefined } }],
+    ["lease.price.amount not a string", { ...validDetails, lease: { ...validDetails.lease, price: { amount: 1000, denom: "uakt" } } }],
+    ["lease.price.denom not a string", { ...validDetails, lease: { ...validDetails.lease, price: { amount: "1000", denom: 42 } } }],
+  ])("throws for invalid shape: %s", (_label, invalid) => {
+    const filePath = path.join(tmpDir, "deployment.json");
+    fs.writeFileSync(filePath, JSON.stringify(invalid));
+
+    expect(() => getExistingDeploymentDetails(filePath)).toThrow(/Invalid deployment details/);
+  });
 });

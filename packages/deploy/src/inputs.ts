@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { guard as createFilter } from "@ucast/mongo2js";
 import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import { load as parseYaml } from "js-yaml";
 
 export interface ActionInputs {
   mnemonic: string;
@@ -16,6 +17,7 @@ export interface ActionInputs {
   queryRestUrl: string;
   txRpcUrl: string;
   leaseTimeout: number;
+  deploymentDetailsPath?: string;
 }
 
 type SelectBidStrategy = "cheapest" | "first";
@@ -38,6 +40,7 @@ export function getInputs(): ActionInputs {
     queryRestUrl: core.getInput("rest-url") || "https://rpc.akt.dev/rest",
     txRpcUrl: core.getInput("tx-rpc-url") || "https://rpc.akt.dev/rpc",
     leaseTimeout: parseInt(core.getInput("lease-timeout") || "180", 10),
+    deploymentDetailsPath: core.getInput("deployment-details-path") || undefined,
   };
 }
 
@@ -65,7 +68,7 @@ function resolveSdl(sdlInput: string): string {
 }
 
 function createBidsFilter(bidConditions: string, pickBidStrategy: SelectBidStrategy): ActionInputs['selectBid'] {
-  const filter = bidConditions ? createFilter<JsonResponse<Bid>>(JSON.parse(bidConditions)) : undefined;
+  const filter = bidConditions ? createFilter<JsonResponse<Bid>>(parseYaml(bidConditions) as any) : undefined;
   return (bids: JsonResponse<Bid>[]) => {
     const filteredBids = filter ? bids.filter(bid => filter(bid)) : bids;
     switch (pickBidStrategy) {

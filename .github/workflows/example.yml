@@ -19,14 +19,10 @@ jobs:
         uses: akash-network/gh-actions/packages/deploy@deploy/v0.2.0
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          bid-filter: >-
-            {
-              "id.provider": {
-                "$nin": [
-                  "akash1yp2p50fdv9ypulq4m4yxpyjswmsa7yanrjtlvt"
-                ]
-              }
-            }
+          bid-filter: | # yaml
+            id.provider:
+              $nin:
+                - akash1yp2p50fdv9ypulq4m4yxpyjswmsa7yanrjtlvt
           rest-url: https://api.sandbox-2.aksh.pw:443
           tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
           sdl: |
@@ -88,3 +84,56 @@ jobs:
         run: |
           echo "Closed deployment: ${{ steps.close.outputs.deployment-id }}"
           echo "Transaction hash: ${{ steps.close.outputs.tx-hash }}"
+
+  deploy-with-redeploy-support:
+    permissions:
+      contents: write
+      pull-requests: write
+    name: Deploy to Akash
+    runs-on: ubuntu-latest
+    outputs:
+      dseq: ${{ steps.deploy.outputs.dseq }}
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Akash Update SDL
+        uses: ovrclk/akash-ghaction-templated-sdl@v1
+        env:
+          APP_VERSION: 1.0.0
+        with:
+          TEMPLATE_PATH: example/deploy.tpl.yml
+          OUTPUT_PATH: example/deploy.yml
+      - name: Deploy to Akash
+        id: deploy
+        uses: akash-network/gh-actions/packages/deploy@deploy/v0.2.0
+        with:
+          mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+          bid-filter: | # yaml
+            id.provider:
+              $nin:
+                - akash1yp2p50fdv9ypulq4m4yxpyjswmsa7yanrjtlvt
+          rest-url: https://api.sandbox-2.aksh.pw:443
+          tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
+          sdl: ./example/deploy.yml
+          deployment-details-path: ./.akash/example/deployment-details.json
+      - name: Close stale deployment in case of full redeploy
+        if: steps.deploy.outputs.prev-dseq != ''
+        uses: akash-network/gh-actions/packages/close-deployment@close-deployment/v0.1.0
+        with:
+          mnemonic: ${{ secrets.AKASH_MNEMONIC }}
+          dseq: ${{ steps.deploy.outputs.prev-dseq }}
+          rest-url: https://api.sandbox-2.aksh.pw:443
+          tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
+
+      - name: Create PR with deployment details
+        if: steps.deploy.outputs.is-new == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: save deployment details"
+          title: "chore: save deployment details"
+          body: |
+            Store deployment details.
+          base: main
+          branch: chore/deployment-details-${{ steps.deploy.outputs.dseq }}
