@@ -11,8 +11,8 @@ inputs:
     description: 'Wallet mnemonic phrase for signing transactions. Should be stored as a GitHub secret.'
     required: true
 
-  dseq:
-    description: 'Deployment sequence number to close'
+  filter:
+    description: 'Filter to select deployments to close'
     required: true
 
   gas:
