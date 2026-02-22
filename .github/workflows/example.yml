@@ -93,8 +93,7 @@ jobs:
 
       - name: Print close info
         run: |
-          echo "Closed deployment: ${{ steps.close.outputs.deployment-id }}"
-          echo "Transaction hash: ${{ steps.close.outputs.tx-hash }}"
+          echo "Closed deployment: ${{ steps.close.outputs.closed_deployments_json }}"
 
   deploy-with-redeploy-support:
     if: ${{ github.event.inputs.job == 'deploy-with-redeploy-support' }}
