@@ -3,7 +3,7 @@
   "lease": {
     "id": {
       "owner": "akash1qufa3xzrf34qvwyejkhvnc4psf49fftaw0asmh",
-      "dseq": 2145067,
+      "dseq": "2145067",
       "gseq": 1,
       "oseq": 1,
       "provider": "akash13sl4awt7al7eckmdsr9zd2wv5df3cdz5x06vj5",
