@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/akash-network/gh-actions/compare/close-deployment/v0.1.0...close-deployment/v0.2.0) (2026-02-22)
+
+
+### Features
+
+* adds possibility to filter what deployments to close ([#19](https://github.com/akash-network/gh-actions/issues/19)) ([444648b](https://github.com/akash-network/gh-actions/commit/444648bf84580cbf601db46b82a0800b1882c209))
+
 ## [0.1.0](https://github.com/akash-network/gh-actions/compare/close-deployment/v0.0.1...close-deployment/v0.1.0) (2026-02-06)
 
 
