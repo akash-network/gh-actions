@@ -6,15 +6,15 @@ on:
       job:
         description: 'The job to run'
         required: true
-        default: 'deploy'
+        default: 'deploy-with-redeploy-support'
         type: choice
         options:
-          - deploy
           - deploy-with-redeploy-support
+          - deploy-temp
 
 jobs:
-  deploy:
-    if: ${{ github.event.inputs.job == 'deploy' }}
+  deploy-temp:
+    if: ${{ github.event.inputs.job == 'deploy-temp' }}
     name: Deploy to Akash
     runs-on: ubuntu-latest
     outputs:
@@ -111,7 +111,7 @@ jobs:
       - name: Akash Update SDL
         uses: ovrclk/akash-ghaction-templated-sdl@v1
         env:
-          APP_VERSION: 1.0.0
+          APP_VERSION: 1.0.0-${{ github.run_id }}
         with:
           TEMPLATE_PATH: example/deploy.tpl.yml
           OUT_PATH: example/deploy.yml
