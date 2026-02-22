@@ -11,11 +11,11 @@ import {
   type TxInput,
   manifestToSortedJSON,
 } from "@akashnetwork/chain-sdk/web";
+import { generateToken, getLeaseStatus, sendManifest } from "@akashnetwork/actions-utils";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import path from "node:path";
 import fs from "node:fs";
 import type { ActionInputs, JsonResponse } from "./inputs.js";
-import { generateToken, getLeaseStatus, sendManifest } from "./provider.js";
 
 type ChainSDK = ReturnType<typeof createChainNodeWebSDK>;
 
@@ -148,13 +148,28 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
 
     logger.info(`Prepare manifest submission (provider: ${createdLease.id?.provider})...`);
     const serviceNames = manifest.groups.map(g => g.services.map(s => s.name)).flat();
-    const token = await tokenGenerator(wallet, selectedBid!, serviceNames);
+    const token = await tokenGenerator(wallet, () => ({
+      access: "granular",
+      permissions: [
+        {
+          access: "granular",
+          provider: createdLease.id?.provider!,
+          deployments: [
+            {
+              dseq: Number(createdLease.id?.dseq!),
+              services: serviceNames,
+              scope: ["send-manifest", "status"]
+            }
+          ]
+        }
+      ]
+    }));
     const provider = await sdk.akash.provider.v1beta4.getProvider({ owner: createdLease.id?.provider }) as unknown as JsonResponse<QueryProviderResponse>;
     logger.info(`Submitting manifest to provider: ${provider.provider.hostUri}`);
     await sendManifest({
       manifest: manifestToSortedJSON(manifest.groups),
       token,
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: selectedBid?.id?.dseq!.toString(),
       fetch: options?.fetch,
     });
@@ -163,7 +178,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
     logger.info(`Getting lease status...`);
     const leaseStatus = await getLeaseStatus({
       token,
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: selectedBid?.id?.dseq!.toString(),
       fetch: options?.fetch,
     });
@@ -220,15 +235,29 @@ export async function updateDeploymentManifest(
   await sdk.akash.deployment.v1beta4.updateDeployment(updateMessage, buildTxOptions(inputs, "Deployment updated via GitHub Action"));
   logger.info("✅ Deployment updated on-chain successfully!");
 
-  const fakeBid = { id: { ...lease.id, bseq: 0 } } as JsonResponse<Bid>;
-  const token = await tokenGenerator(wallet, fakeBid, manifest.groups.map(g => g.services.map(s => s.name)).flat());
+  const token = await tokenGenerator(wallet, () => ({
+    access: "granular",
+    permissions: [
+      {
+        access: "granular",
+        provider: lease.id?.provider!,
+        deployments: [
+          {
+            dseq: Number(lease.id?.dseq!),
+            services: manifest.groups.map(g => g.services.map(s => s.name)).flat(),
+            scope: ["send-manifest", "status"]
+          }
+        ]
+      }
+    ]
+  }));
   const provider = await sdk.akash.provider.v1beta4.getProvider({ owner: lease.id.provider }) as unknown as JsonResponse<QueryProviderResponse>;
 
   logger.info(`Submitting updated manifest to provider: ${provider.provider.hostUri}`);
   await sendManifest({
     manifest: manifestToSortedJSON(manifest.groups),
     token,
-    provider,
+    providerHostUri: provider.provider.hostUri,
     dseq: existingDeployment.dseq,
     fetch: options?.fetch,
   });
@@ -237,7 +266,7 @@ export async function updateDeploymentManifest(
   logger.info("Getting lease status...");
   const leaseStatus = await getLeaseStatus({
     token,
-    provider,
+    providerHostUri: provider.provider.hostUri,
     dseq: existingDeployment.dseq,
     fetch: options?.fetch,
   });

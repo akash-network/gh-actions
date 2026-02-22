@@ -1,11 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { sendManifest, getLeaseStatus, generateToken } from "./provider.js";
-import type { JsonResponse } from "./inputs.js";
-import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { QueryProviderResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { JwtTokenManager } from "@akashnetwork/chain-sdk";
-import { mock } from "vitest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { getLeaseStatus, sendManifest } from "./provider.js";
+import type { JsonResponse } from "./provider.ts";
 
 describe(sendManifest.name, () => {
   it("sends manifest to correct URL with PUT method", async () => {
@@ -15,7 +11,7 @@ describe(sendManifest.name, () => {
     await sendManifest({
       manifest,
       token: "test-jwt-token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -39,7 +35,7 @@ describe(sendManifest.name, () => {
     await sendManifest({
       manifest: "{}",
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -65,7 +61,7 @@ describe(sendManifest.name, () => {
     const promise = sendManifest({
       manifest: "{}",
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -84,7 +80,7 @@ describe(sendManifest.name, () => {
     await expect(sendManifest({
       manifest: "{}",
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     })).rejects.toThrow("Failed to send manifest: 400");
@@ -106,7 +102,7 @@ describe(sendManifest.name, () => {
     const promise = sendManifest({
       manifest: "{}",
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -127,7 +123,7 @@ describe(sendManifest.name, () => {
     const result = await sendManifest({
       manifest: "{}",
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -169,7 +165,7 @@ describe(getLeaseStatus.name, () => {
 
     await getLeaseStatus({
       token: "test-jwt-token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -197,7 +193,7 @@ describe(getLeaseStatus.name, () => {
 
     const result = await getLeaseStatus({
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -216,7 +212,7 @@ describe(getLeaseStatus.name, () => {
 
     const promise = getLeaseStatus({
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
@@ -242,7 +238,7 @@ describe(getLeaseStatus.name, () => {
 
     const promise = getLeaseStatus({
       token: "token",
-      provider,
+      providerHostUri: provider.provider.hostUri,
       dseq: "12345",
       fetch,
     });
