@@ -86,7 +86,8 @@ jobs:
         uses: akash-network/gh-actions/packages/close-deployment@main
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          dseq: ${{ steps.deploy.outputs.dseq }}
+          filter: | # yaml
+            dseq: ${{ steps.deploy.outputs.dseq }}
           rest-url: https://api.sandbox-2.aksh.pw:443
           tx-rpc-url: https://rpc.sandbox-2.aksh.pw:443
 
