@@ -139,12 +139,18 @@ jobs:
 
       - name: Create PR with deployment details
         if: steps.deploy.outputs.is-new == 'true'
-        uses: peter-evans/create-pull-request@v5
+        id: deployment-details
+        uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          add-paths: ./.akash/example/deployment-details.json
           commit-message: "chore: save deployment details"
           title: "chore: save deployment details"
           body: |
             Store deployment details.
-          base: main
           branch: chore/deployment-details-${{ steps.deploy.outputs.dseq }}
+
+      - name: Print PR info
+        if: ${{ steps.deployment-details.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.deployment-details.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.deployment-details.outputs.pull-request-url }}"
