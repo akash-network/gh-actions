@@ -26,7 +26,7 @@ jobs:
 
       - name: Deploy to Akash
         id: deploy
-        uses: akash-network/gh-actions/packages/deploy@deploy/v0.3.0
+        uses: akash-network/gh-actions/packages/deploy@deploy/v0.3.1
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
           bid-filter: | # yaml
@@ -117,7 +117,7 @@ jobs:
           OUT_PATH: example/deploy.yml
       - name: Deploy to Akash
         id: deploy
-        uses: akash-network/gh-actions/packages/deploy@deploy/v0.3.0
+        uses: akash-network/gh-actions/packages/deploy@deploy/v0.3.1
         with:
           mnemonic: ${{ secrets.AKASH_MNEMONIC }}
           bid-filter: | # yaml
