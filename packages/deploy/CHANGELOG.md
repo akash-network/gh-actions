@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/akash-network/gh-actions/compare/deploy/v0.2.0...deploy/v0.3.0) (2026-02-22)
+
+
+### Features
+
+* adds deployment state tracking on fs + redeploy ([#8](https://github.com/akash-network/gh-actions/issues/8)) ([813217a](https://github.com/akash-network/gh-actions/commit/813217a4f13df963a907116c210f1511e3b6daaf))
+
 ## [0.2.0](https://github.com/akash-network/gh-actions/compare/deploy/v0.1.0...deploy/v0.2.0) (2026-02-06)
 
 
