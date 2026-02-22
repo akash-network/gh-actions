@@ -1,15 +1,19 @@
 import * as core from "@actions/core";
 import { type DeploymentID, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { MsgCreateDeployment, QueryProviderResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { MsgCreateDeployment, MsgUpdateDeployment, QueryProviderResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { Bid, MsgCreateLease, QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import {
   createChainNodeWebSDK,
   type QueryInput,
-  SDL,
+  generateManifest,
+  generateManifestVersion,
+  yaml,
   type TxInput,
-  v3Group,
+  manifestToSortedJSON,
 } from "@akashnetwork/chain-sdk/web";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import path from "node:path";
+import fs from "node:fs";
 import type { ActionInputs, JsonResponse } from "./inputs.js";
 import { generateToken, getLeaseStatus, sendManifest } from "./provider.js";
 
@@ -21,11 +25,30 @@ type ChainSDK = ReturnType<typeof createChainNodeWebSDK>;
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export type Logger = Pick<typeof core, "info" | "warning" | "error">;
 
+export interface StoredDeploymentDetails {
+  dseq: string;
+  lease: {
+    id: {
+      owner: string;
+      dseq: string;
+      gseq: number;
+      oseq: number;
+      provider: string;
+    };
+    state: string;
+    price: {
+      amount: string;
+      denom: string;
+    };
+  };
+}
+
 export interface DeploymentResult {
   deploymentId: {
     owner: string;
     dseq: string;
   };
+  isNew: boolean;
   lease?: {
     id: {
       owner: string;
@@ -50,7 +73,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
   const logger = options?.logger || core;
   const tokenGenerator = options?.generateToken || generateToken;
   logger.info("Parsing SDL...");
-  const sdl = SDL.fromString(inputs.sdl, "beta3");
+  const manifest = parseSDL(inputs.sdl, logger);
 
   const latestBlockResponse = await sdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
   const dseq = latestBlockResponse.block?.header?.height!;
@@ -65,8 +88,8 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
       owner: account.address,
       dseq,
     },
-    groups: sdl.groups(),
-    hash: await sdl.manifestVersion(),
+    groups: manifest.groupSpecs,
+    hash: await generateManifestVersion(manifest.groups),
     deposit: {
       amount: {
         denom: inputs.denom,
@@ -91,6 +114,7 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
       owner: deploymentId.owner,
       dseq: dseq.toString(),
     },
+    isNew: true,
   };
 
   try {
@@ -128,11 +152,12 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
     logger.info(`✅ Lease verified: ${createdLease.id?.owner}/${createdLease.id?.dseq}/${createdLease.id?.gseq}/${createdLease.id?.oseq}/${createdLease.id?.provider}`);
 
     logger.info(`Prepare manifest submission (provider: ${createdLease.id?.provider})...`);
-    const token = await tokenGenerator(wallet, selectedBid!, sdl.serviceNames());
+    const serviceNames = manifest.groups.map(g => g.services.map(s => s.name)).flat();
+    const token = await tokenGenerator(wallet, selectedBid!, serviceNames);
     const provider = await sdk.akash.provider.v1beta4.getProvider({ owner: createdLease.id?.provider }) as unknown as JsonResponse<QueryProviderResponse>;
     logger.info(`Submitting manifest to provider: ${provider.provider.hostUri}`);
     await sendManifest({
-      manifest: sdl.manifestSortedJSON(),
+      manifest: manifestToSortedJSON(manifest.groups),
       token,
       provider,
       dseq: selectedBid?.id?.dseq!.toString(),
@@ -170,6 +195,67 @@ export async function createDeployment(sdk: ChainSDK, wallet: DirectSecp256k1HdW
   }
 
   return result;
+}
+
+export async function updateDeploymentManifest(
+  sdk: ChainSDK,
+  wallet: DirectSecp256k1HdWallet,
+  inputs: ActionInputs,
+  existingDeployment: StoredDeploymentDetails,
+  options?: {
+    fetch?: typeof globalThis.fetch;
+    logger?: Logger;
+    generateToken?: typeof generateToken;
+  }
+): Promise<DeploymentResult> {
+  const logger = options?.logger || core;
+  const tokenGenerator = options?.generateToken || generateToken;
+
+  logger.info("Parsing SDL...");
+  const manifest = parseSDL(inputs.sdl, logger);
+
+  const { lease } = existingDeployment;
+  const deploymentId = { owner: lease.id.owner, dseq: existingDeployment.dseq };
+
+  logger.info(`Updating deployment on-chain (dseq: ${existingDeployment.dseq})...`);
+  const updateMessage: TxInput<MsgUpdateDeployment> = {
+    id: deploymentId,
+    hash: await generateManifestVersion(manifest.groups),
+  };
+  await sdk.akash.deployment.v1beta4.updateDeployment(updateMessage, buildTxOptions(inputs, "Deployment updated via GitHub Action"));
+  logger.info("✅ Deployment updated on-chain successfully!");
+
+  const fakeBid = { id: { ...lease.id, bseq: 0 }, price: lease.price } as JsonResponse<Bid>;
+  const token = await tokenGenerator(wallet, fakeBid, manifest.groups.map(g => g.services.map(s => s.name)).flat());
+  const provider = await sdk.akash.provider.v1beta4.getProvider({ owner: lease.id.provider }) as unknown as JsonResponse<QueryProviderResponse>;
+
+  logger.info(`Submitting updated manifest to provider: ${provider.provider.hostUri}`);
+  await sendManifest({
+    manifest: manifestToSortedJSON(manifest.groups),
+    token,
+    provider,
+    dseq: existingDeployment.dseq,
+    fetch: options?.fetch,
+  });
+  logger.info("✅ Manifest updated successfully!");
+
+  logger.info("Getting lease status...");
+  const leaseStatus = await getLeaseStatus({
+    token,
+    provider,
+    dseq: existingDeployment.dseq,
+    fetch: options?.fetch,
+  });
+
+  const services = Object.keys(leaseStatus.services).map(name => `${name}: ${leaseStatus.services[name].uris.join("\n")}`);
+  logger.info("🚀 Deployment is ready");
+  logger.info(services.join("\n"));
+
+  return {
+    deploymentId,
+    isNew: false,
+    lease: lease as DeploymentResult["lease"],
+  };
 }
 
 export async function waitForBid(
@@ -258,4 +344,94 @@ function buildTxOptions(
   }
 
   return options;
+}
+
+function parseSDL(sdlInput: string, logger: Logger) {
+  const manifest = generateManifest(yaml.template(sdlInput));
+
+  if (!manifest.ok) {
+    logger.error('SDL parsing error: ');
+    manifest.value.forEach(error => logger.error(error.message));
+    throw new Error(`Failed to parse SDL`);
+  }
+  return manifest.value;
+}
+
+export function getExistingDeploymentDetails(deploymentDetailsPath: string | undefined | null): StoredDeploymentDetails | null {
+  if (!deploymentDetailsPath) return null;
+
+  const filePath = path.resolve(process.cwd(), deploymentDetailsPath);
+  if (!fs.existsSync(filePath)) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch (error) {
+    throw new Error(`Failed to parse deployment details from ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  try {
+    return validateStoredDeploymentDetails(parsed);
+  } catch (error) {
+    throw new Error(`Invalid deployment details in ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function validateStoredDeploymentDetails(data: unknown): StoredDeploymentDetails {
+  if (typeof data !== "object" || data === null) {
+    throw new Error("must be an object");
+  }
+
+  const d = data as Record<string, unknown>;
+
+  if (typeof d.dseq !== "string" || !d.dseq) {
+    throw new Error("'dseq' must be a non-empty string");
+  }
+
+  if (typeof d.lease !== "object" || d.lease === null) {
+    throw new Error("'lease' must be an object");
+  }
+
+  const lease = d.lease as Record<string, unknown>;
+
+  if (typeof lease.id !== "object" || lease.id === null) {
+    throw new Error("'lease.id' must be an object");
+  }
+
+  const id = lease.id as Record<string, unknown>;
+
+  if (typeof id.owner !== "string" || !id.owner) {
+    throw new Error("'lease.id.owner' must be a non-empty string");
+  }
+  if (typeof id.dseq !== "string" || !id.dseq) {
+    throw new Error("'lease.id.dseq' must be a non-empty string");
+  }
+  if (typeof id.gseq !== "number") {
+    throw new Error("'lease.id.gseq' must be a number");
+  }
+  if (typeof id.oseq !== "number") {
+    throw new Error("'lease.id.oseq' must be a number");
+  }
+  if (typeof id.provider !== "string" || !id.provider) {
+    throw new Error("'lease.id.provider' must be a non-empty string");
+  }
+
+  if (typeof lease.state !== "string" || !lease.state) {
+    throw new Error("'lease.state' must be a non-empty string");
+  }
+
+  if (typeof lease.price !== "object" || lease.price === null) {
+    throw new Error("'lease.price' must be an object");
+  }
+
+  const price = lease.price as Record<string, unknown>;
+
+  if (typeof price.amount !== "string") {
+    throw new Error("'lease.price.amount' must be a string");
+  }
+  if (typeof price.denom !== "string") {
+    throw new Error("'lease.price.denom' must be a string");
+  }
+
+  return data as StoredDeploymentDetails;
 }

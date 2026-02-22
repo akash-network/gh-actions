@@ -76,6 +76,13 @@ inputs:
     required: false
     default: '180'
 
+  deployment-details-path:
+    description: |
+      Path to a JSON file used for storing and reading deployment details.
+      If the file exists, the action reads it and reuses the deployment (or creates a new one if the lease has closed).
+      After any new deployment, the file is written with the latest dseq and lease details.
+    required: false
+
 outputs:
   deployment-id:
     description: 'The deployment ID (owner/dseq)'
@@ -91,6 +98,12 @@ outputs:
 
   lease-status:
     description: 'The status of the lease'
+
+  is-new:
+    description: 'Indicates if this deployment was a fresh new deployment or a redeployment (true/false)'
+
+  prev-dseq:
+    description: 'The previous deployment sequence number, set only when is-new is true and deployment-details-path was provided (i.e. the old lease was closed and a new deployment was created)'
 
 runs:
   using: 'node24'
