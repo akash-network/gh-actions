@@ -89,7 +89,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    name: Deploy to Akash
+    name: Deploy to Akash with redeploy support
     runs-on: ubuntu-latest
     outputs:
       dseq: ${{ steps.deploy.outputs.dseq }}
@@ -103,7 +103,7 @@ jobs:
           APP_VERSION: 1.0.0
         with:
           TEMPLATE_PATH: example/deploy.tpl.yml
-          OUTPUT_PATH: example/deploy.yml
+          OUT_PATH: example/deploy.yml
       - name: Deploy to Akash
         id: deploy
         uses: akash-network/gh-actions/packages/deploy@deploy/v0.3.0
