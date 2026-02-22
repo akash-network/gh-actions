@@ -2,9 +2,19 @@ name: Test Deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      job:
+        description: 'The job to run'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - deploy-with-redeploy-support
 
 jobs:
   deploy:
+    if: ${{ github.event.inputs.job == 'deploy' }}
     name: Deploy to Akash
     runs-on: ubuntu-latest
     outputs:
@@ -68,8 +78,8 @@ jobs:
           echo "Lease ID: ${{ steps.deploy.outputs.lease-id }}"
           echo "Provider: ${{ steps.deploy.outputs.provider }}"
 
-      - name: Wait for 3 minutes
-        run: sleep 180
+      - name: Emulation some work (wait for 30 secs)
+        run: sleep 30
 
       - name: Close Akash Deployment
         id: close
@@ -86,6 +96,7 @@ jobs:
           echo "Transaction hash: ${{ steps.close.outputs.tx-hash }}"
 
   deploy-with-redeploy-support:
+    if: ${{ github.event.inputs.job == 'deploy-with-redeploy-support' }}
     permissions:
       contents: write
       pull-requests: write
