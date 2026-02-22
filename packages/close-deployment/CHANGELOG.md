@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/akash-network/gh-actions/compare/close-deployment/v0.2.0...close-deployment/v0.2.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* fixes close deployment filter ([21cda9a](https://github.com/akash-network/gh-actions/commit/21cda9a55f729ab1b3b26a2a730f65103beb5376))
+
 ## [0.2.0](https://github.com/akash-network/gh-actions/compare/close-deployment/v0.1.0...close-deployment/v0.2.0) (2026-02-22)
 
 
