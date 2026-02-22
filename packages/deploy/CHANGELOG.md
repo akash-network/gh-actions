@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/akash-network/gh-actions/compare/deploy/v0.3.0...deploy/v0.3.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* reduces what is stored in deployment stored state ([#15](https://github.com/akash-network/gh-actions/issues/15)) ([d9a414f](https://github.com/akash-network/gh-actions/commit/d9a414faecedd91020b5c2e3b4eb03efc3287f2e))
+
 ## [0.3.0](https://github.com/akash-network/gh-actions/compare/deploy/v0.2.0...deploy/v0.3.0) (2026-02-22)
 
 
