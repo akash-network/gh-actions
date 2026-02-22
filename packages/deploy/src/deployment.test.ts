@@ -599,8 +599,6 @@ describe(updateDeploymentManifest.name, () => {
           oseq: 1,
           provider: providerAddress,
         },
-        state: "active",
-        price: { amount: "1000", denom: "uakt" },
       },
     };
 
@@ -689,8 +687,6 @@ describe(getExistingDeploymentDetails.name, () => {
         oseq: 1,
         provider: "akash1provider",
       },
-      state: "active",
-      price: { amount: "1000", denom: "uakt" },
     },
   };
 
@@ -726,10 +722,6 @@ describe(getExistingDeploymentDetails.name, () => {
     ["lease.id.gseq not a number", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, gseq: "1" } } }],
     ["lease.id.oseq not a number", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, oseq: "1" } } }],
     ["missing lease.id.provider", { ...validDetails, lease: { ...validDetails.lease, id: { ...validDetails.lease.id, provider: "" } } }],
-    ["missing lease.state", { ...validDetails, lease: { ...validDetails.lease, state: "" } }],
-    ["missing lease.price", { ...validDetails, lease: { ...validDetails.lease, price: undefined } }],
-    ["lease.price.amount not a string", { ...validDetails, lease: { ...validDetails.lease, price: { amount: 1000, denom: "uakt" } } }],
-    ["lease.price.denom not a string", { ...validDetails, lease: { ...validDetails.lease, price: { amount: "1000", denom: 42 } } }],
   ])("throws for invalid shape: %s", (_label, invalid) => {
     const filePath = path.join(tmpDir, "deployment.json");
     fs.writeFileSync(filePath, JSON.stringify(invalid));

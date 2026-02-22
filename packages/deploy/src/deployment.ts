@@ -35,11 +35,6 @@ export interface StoredDeploymentDetails {
       oseq: number;
       provider: string;
     };
-    state: string;
-    price: {
-      amount: string;
-      denom: string;
-    };
   };
 }
 
@@ -225,7 +220,7 @@ export async function updateDeploymentManifest(
   await sdk.akash.deployment.v1beta4.updateDeployment(updateMessage, buildTxOptions(inputs, "Deployment updated via GitHub Action"));
   logger.info("✅ Deployment updated on-chain successfully!");
 
-  const fakeBid = { id: { ...lease.id, bseq: 0 }, price: lease.price } as JsonResponse<Bid>;
+  const fakeBid = { id: { ...lease.id, bseq: 0 } } as JsonResponse<Bid>;
   const token = await tokenGenerator(wallet, fakeBid, manifest.groups.map(g => g.services.map(s => s.name)).flat());
   const provider = await sdk.akash.provider.v1beta4.getProvider({ owner: lease.id.provider }) as unknown as JsonResponse<QueryProviderResponse>;
 
@@ -414,23 +409,6 @@ function validateStoredDeploymentDetails(data: unknown): StoredDeploymentDetails
   }
   if (typeof id.provider !== "string" || !id.provider) {
     throw new Error("'lease.id.provider' must be a non-empty string");
-  }
-
-  if (typeof lease.state !== "string" || !lease.state) {
-    throw new Error("'lease.state' must be a non-empty string");
-  }
-
-  if (typeof lease.price !== "object" || lease.price === null) {
-    throw new Error("'lease.price' must be an object");
-  }
-
-  const price = lease.price as Record<string, unknown>;
-
-  if (typeof price.amount !== "string") {
-    throw new Error("'lease.price.amount' must be a string");
-  }
-  if (typeof price.denom !== "string") {
-    throw new Error("'lease.price.denom' must be a string");
   }
 
   return data as StoredDeploymentDetails;
