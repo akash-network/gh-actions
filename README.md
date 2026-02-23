@@ -7,7 +7,7 @@ A collection of GitHub Actions for deploying and managing applications on the [A
 | Action | Description |
 |--------|-------------|
 | [deploy](./packages/deploy) | Deploy applications to Akash Network |
-| [close-deployment](./packages/close-deployment) | Close an existing Akash deployment |
+| [close-deployment](./packages/close-deployment) | Close existing Akash deployments based on filter |
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ A collection of GitHub Actions for deploying and managing applications on the [A
 ```yaml
 - name: Deploy to Akash
   id: deploy
-  uses: akash-network/akash-gha/packages/deploy@deploy/v0.2.0
+  uses: akash-network/akash-gha/packages/deploy@deploy/v0.4.0
   with:
     mnemonic: ${{ secrets.AKASH_MNEMONIC }}
     sdl: ./deploy.yaml
@@ -29,81 +29,16 @@ A collection of GitHub Actions for deploying and managing applications on the [A
 
 ```yaml
 - name: Close Akash Deployment
-  uses: akash-network/akash-gha/packages/close-deployment@close-deployment/v0.1.0
+  uses: akash-network/akash-gha/packages/close-deployment@close-deployment/v0.2.1
   with:
     mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-    dseq: ${{ steps.deploy.outputs.dseq }}
+    filter: |
+      dseq: ${{ steps.deploy.outputs.dseq }}
 ```
 
 ## Full Workflow Example
 
-Deploy on push to main, close when PR is merged:
-
-```yaml
-name: Akash Deployment
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [closed]
-
-jobs:
-  deploy:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Deploy to Akash
-        id: deploy
-        uses: akash-network/akash-gha/packages/deploy@deploy/v0.2.0
-        with:
-          mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          pick-bid-strategy: 'cheapest'
-          sdl: |
-            version: "2.0"
-            services:
-              web:
-                image: nginx:alpine
-                expose:
-                  - port: 80
-                    as: 80
-                    to:
-                      - global: true
-            profiles:
-              compute:
-                web:
-                  resources:
-                    cpu:
-                      units: 0.5
-                    memory:
-                      size: 512Mi
-                    storage:
-                      size: 512Mi
-              placement:
-                dcloud:
-                  pricing:
-                    web:
-                      denom: uakt
-                      amount: 10000
-            deployment:
-              web:
-                dcloud:
-                  profile: web
-                  count: 1
-
-      - name: Trigger some work in container or wait for it to do it
-        run: |
-          echo "Deployed: ${{ steps.deploy.outputs.deployment-id }}"
-          echo "DSEQ: ${{ steps.deploy.outputs.dseq }}"
-
-      - name: Close deployment
-        uses: akash-network/akash-gha/packages/close-deployment@close-deployment/v0.1.0
-        with:
-          mnemonic: ${{ secrets.AKASH_MNEMONIC }}
-          dseq: ${{ steps.deploy.outputs.dseq }}
-```
+Check the full workflow example in [.github/workflows/example.yml](.github/workflows/example.yml)
 
 ## Security
 
